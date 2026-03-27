@@ -1,0 +1,35 @@
+import { useNavigate } from 'react-router-dom';
+
+export default function Hero() {
+  const navigate = useNavigate();
+
+  return (
+    <section className="bg-slate-50 pt-20 pb-32 px-8">
+      <div className="max-w-6xl mx-auto text-center">
+        <span className="bg-indigo-100 text-indigo-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
+          Next-Gen Clinic Management
+        </span>
+      <h1 className="mt-8 text-6xl font-extrabold text-slate-900 leading-tight">
+        Modern care for 
+        <span className="font-['Caveat'] text-7xl text-indigo-600 inline-block ml-4 -rotate-3">
+          digital clinics.
+        </span>
+      </h1>
+        <p className="mt-6 text-xl text-slate-600 max-w-2xl mx-auto">
+          Streamline patient records, automate billing, and focus on what matters most: delivering world-class healthcare.
+        </p>
+        <div className="mt-10 flex gap-4 justify-center">
+          <button 
+            onClick={() => navigate('/login')}
+            className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+          >
+            Start Free Now
+          </button>
+          <button className="group bg-white border border-slate-200 text-slate-700 px-8 py-4 rounded-2xl font-bold hover:bg-slate-50 transition active:scale-95">
+            Preview <i class="fa-solid fa-magnifying-glass rotate-90 group-hover:rotate-135 duration-300 ease ml-1"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
