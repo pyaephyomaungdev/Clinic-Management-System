@@ -69,7 +69,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-stretch bg-white">
+    <div className="h-screen flex items-stretch bg-white overflow-hidden">
       <div className="hidden lg:flex w-1/2 bg-indigo-600 relative overflow-hidden flex-col justify-between p-12">
         <div
           className="absolute inset-0 opacity-10"
@@ -98,8 +98,8 @@ export default function Register() {
         <div className="relative z-10 text-indigo-200 text-sm">© 2026 Brainiacs Systems Inc.</div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="max-w-xl w-full">
+      <div className="w-full lg:w-1/2 h-screen flex items-start justify-center p-8 overflow-y-auto">
+        <div className="max-w-xl w-full my-auto py-8">
           <div className="mb-10">
             <p className="text-xs uppercase tracking-[0.3em] text-indigo-500 font-bold">Patient Onboarding</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900 mb-2">Create your patient profile</h1>
