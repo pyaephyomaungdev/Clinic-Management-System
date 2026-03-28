@@ -10,9 +10,11 @@ export default function Hero() {
       ? '/admin'
       : user?.role === 'patient'
         ? '/appointments'
+        : user?.role === 'cashier'
+          ? '/billing'
         : isAuthenticated
           ? '/records'
-        : '/register';
+          : '/register';
 
   const secondaryDestination = !isAuthenticated
     ? '/login'
@@ -20,6 +22,8 @@ export default function Hero() {
       ? '/appointments'
       : user?.role === 'clinic_admin' || user?.role === 'platform_admin'
         ? '/admin'
+        : user?.role === 'cashier'
+          ? '/billing'
         : '/records';
 
   return (
@@ -48,6 +52,8 @@ export default function Hero() {
                 : 'Open Admin Console'
               : user?.role === 'patient'
                 ? 'Book Appointment'
+              : user?.role === 'cashier'
+                ? 'Open Cashier Desk'
               : isAuthenticated
                 ? 'Open Dashboard'
                 : 'Start Free Now'}
@@ -63,6 +69,8 @@ export default function Hero() {
                   ? 'Admin Tools'
                   : user?.role === 'patient'
                     ? 'Book Appointment'
+                    : user?.role === 'cashier'
+                      ? 'Open Billing'
                     : 'Open Workspace'
               : 'Sign In'}{' '}
             <span className="ml-1 inline-block transition-transform duration-300 ease-out group-hover:translate-x-1">{'->'}</span>

@@ -6,6 +6,11 @@ import Footer from './components/Footer.jsx';
 import PatientRecords from './components/PatientRecords.jsx';
 import Billing from './components/Billing.jsx';
 import Contact from './components/Contact.jsx';
+import About from './components/About.jsx';
+import Careers from './components/Careers.jsx';
+import Security from './components/Security.jsx';
+import PrivacyPolicy from './components/PrivacyPolicy.jsx';
+import TermsOfService from './components/TermsOfService.jsx';
 import Login from './components/Login.jsx';
 import RoleRoute from './components/RoleRoute.jsx';
 import AppointmentHub from './components/AppointmentHub.jsx';
@@ -35,7 +40,15 @@ function App() {
           <Route
             path="/records"
             element={
-              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'receptionist', 'staff']}>
+              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'staff']}>
+                <PatientRecords />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/records/:patientId"
+            element={
+              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'staff']}>
                 <PatientRecords />
               </RoleRoute>
             }
@@ -43,7 +56,7 @@ function App() {
           <Route
             path="/billing"
             element={
-              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'receptionist', 'staff']}>
+              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'receptionist', 'cashier', 'staff']}>
                 <Billing />
               </RoleRoute>
             }
@@ -65,6 +78,11 @@ function App() {
             }
           />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
         </Routes>
       </main>
       {!isAuthPage && <Footer />}

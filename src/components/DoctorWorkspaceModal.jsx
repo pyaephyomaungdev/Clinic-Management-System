@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import ModalPortal from './ModalPortal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isApiError } from '../lib/api.js';
 
@@ -84,14 +83,14 @@ function buildPrescriptionForm(prescription) {
     items:
       Array.isArray(prescription.items) && prescription.items.length > 0
         ? prescription.items.map((item) => ({
-            medicineName: item.medicineName ?? '',
-            dosage: item.dosage ?? '',
-            frequency: item.frequency ?? '',
-            duration: item.duration ?? '',
-            quantity: item.quantity === undefined || item.quantity === null ? '' : String(item.quantity),
-            unitPrice: item.unitPrice === undefined || item.unitPrice === null ? '' : String(item.unitPrice),
-            instructions: item.instructions ?? '',
-          }))
+          medicineName: item.medicineName ?? '',
+          dosage: item.dosage ?? '',
+          frequency: item.frequency ?? '',
+          duration: item.duration ?? '',
+          quantity: item.quantity === undefined || item.quantity === null ? '' : String(item.quantity),
+          unitPrice: item.unitPrice === undefined || item.unitPrice === null ? '' : String(item.unitPrice),
+          instructions: item.instructions ?? '',
+        }))
         : [emptyPrescriptionItem()],
   };
 }
@@ -112,7 +111,7 @@ function findPrescriptionForEncounter(record, encounterId) {
   return record.prescriptions.find((prescription) => prescription.encounterId === encounterId) ?? null;
 }
 
-export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, onRecordUpdated }) {
+export default function DoctorWorkspacePanel({ selectedRecord, onRecordUpdated }) {
   const { request } = useAuth();
   const [selectedAppointmentId, setSelectedAppointmentId] = useState('');
   const [encounterForm, setEncounterForm] = useState(emptyEncounterForm);
@@ -135,7 +134,7 @@ export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, 
   const isPrescriptionLocked = selectedPrescription?.status === 'finalized';
 
   useEffect(() => {
-    if (!isOpen || !selectedRecord) {
+    if (!selectedRecord) {
       return;
     }
 
@@ -144,10 +143,10 @@ export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, 
     setWorkspaceNotice('');
     setEncounterError('');
     setPrescriptionError('');
-  }, [encounters, isOpen, selectedRecord]);
+  }, [appointments, encounters, selectedRecord]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!selectedRecord) {
       return;
     }
 
@@ -155,7 +154,7 @@ export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, 
     setPrescriptionForm(buildPrescriptionForm(selectedPrescription));
     setEncounterError('');
     setPrescriptionError('');
-  }, [isOpen, selectedAppointmentId, selectedEncounter, selectedPrescription]);
+  }, [selectedAppointmentId, selectedEncounter, selectedPrescription, selectedRecord]);
 
   if (!selectedRecord) {
     return null;
@@ -297,7 +296,11 @@ export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, 
         },
       });
 
-      setWorkspaceNotice('Prescription saved successfully.');
+      setWorkspaceNotice(
+        selectedEncounter?.status === 'finalized'
+          ? 'Prescription saved and billing has been synced for this finalized encounter.'
+          : 'Prescription saved successfully. Finalize the encounter to push charges into billing.',
+      );
       await onRecordUpdated?.();
     } catch (error) {
       setPrescriptionError(getErrorMessage(error, 'The prescription could not be saved.'));
@@ -307,22 +310,19 @@ export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, 
   };
 
   return (
-    <ModalPortal isOpen={isOpen} onClose={onClose}>
-      <div className="mx-auto max-w-6xl rounded-[2rem] bg-white p-8 shadow-2xl">
+    <section className="mt-8 rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.35em] text-indigo-500">Doctor Workspace</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">{selectedRecord.patient.fullName}</h2>
+            <h2 className="mt-2 text-3xl font-bold text-slate-900">Clinical Notes and Medication Plan</h2>
             <p className="mt-2 text-sm text-slate-500">
               {selectedRecord.patient.patientCode} • {selectedRecord.patient.room || 'Unassigned room'}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-full border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50"
-          >
-            Close
-          </button>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Patient</p>
+            <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRecord.patient.fullName}</p>
+          </div>
         </div>
 
         {workspaceNotice && (
@@ -769,7 +769,6 @@ export default function DoctorWorkspaceModal({ isOpen, onClose, selectedRecord, 
             </section>
           </div>
         )}
-      </div>
-    </ModalPortal>
+    </section>
   );
 }

@@ -4,12 +4,24 @@ import { useAuth } from '../context/AuthContext.jsx';
 export default function RoleRoute({ children, allowedRoles = [] }) {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
-  const fallbackRoute =
-    user?.role === 'patient'
-      ? '/appointments'
-      : user?.role === 'clinic_admin' || user?.role === 'platform_admin'
-        ? '/admin'
-        : '/records';
+
+  const getFallbackRoute = (role) => {
+    if (role === 'patient') {
+      return '/appointments';
+    }
+
+    if (role === 'platform_admin' || role === 'clinic_admin') {
+      return '/admin';
+    }
+
+    if (role === 'cashier') {
+      return '/billing';
+    }
+
+    return '/records';
+  };
+
+  const fallbackRoute = getFallbackRoute(user?.role);
 
   if (!isAuthenticated) {
     return (

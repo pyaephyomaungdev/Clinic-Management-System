@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Navbar() {
@@ -7,12 +7,13 @@ export default function Navbar() {
   const isPatient = user?.role === 'patient';
   const isPlatformAdmin = user?.role === 'platform_admin';
   const isAdmin = user?.role === 'clinic_admin' || isPlatformAdmin;
-  const isClinicalStaff = ['clinic_admin', 'doctor', 'receptionist', 'staff'].includes(user?.role ?? '');
+  const canAccessRecords = ['clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'staff'].includes(user?.role ?? '');
+  const canAccessBilling = ['clinic_admin', 'doctor', 'receptionist', 'cashier', 'staff'].includes(user?.role ?? '');
   const navItems = [
     { to: '/', label: 'Home', show: true },
     { to: '/appointments', label: 'Appointments', show: isAuthenticated && isPatient },
-    { to: '/records', label: 'Records', show: isAuthenticated && isClinicalStaff },
-    { to: '/billing', label: 'Billing', show: isAuthenticated && isClinicalStaff },
+    { to: '/records', label: user?.role === 'pharmacist' ? 'Pharmacy' : 'Records', show: isAuthenticated && canAccessRecords },
+    { to: '/billing', label: user?.role === 'cashier' ? 'Cashier' : 'Billing', show: isAuthenticated && canAccessBilling },
     { to: '/admin', label: isPlatformAdmin ? 'Platform' : 'Admin', show: isAuthenticated && isAdmin },
     { to: '/contact', label: 'Contact', show: true },
   ].filter((item) => item.show);
@@ -37,11 +38,23 @@ export default function Navbar() {
           <span className="font-bold text-xl tracking-tight text-slate-900">Brainiacs</span>
         </Link>
 
-        <div className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
+        <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-2 text-sm font-medium text-slate-600 shadow-sm">
           {navItems.map((item) => (
-            <Link key={item.to} to={item.to} className="hover:text-indigo-600 transition-colors">
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) =>
+                [
+                  'rounded-full px-4 py-2 transition-all',
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600',
+                ].join(' ')
+              }
+            >
               {item.label}
-            </Link>
+            </NavLink>
           ))}
         </div>
 

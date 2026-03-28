@@ -23,6 +23,8 @@ const defaultUserForm = {
   tenantId: '',
 };
 
+const USER_ROLE_OPTIONS = ['platform_admin', 'clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'cashier', 'staff', 'patient'];
+
 function getErrorMessage(error, fallbackMessage) {
   return isApiError(error) ? error.message : fallbackMessage;
 }
@@ -389,7 +391,7 @@ export default function PlatformAdminConsole() {
                 className="rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">All roles</option>
-                {['platform_admin', 'clinic_admin', 'doctor', 'receptionist', 'staff', 'patient'].map((role) => (
+                {USER_ROLE_OPTIONS.map((role) => (
                   <option key={role} value={role}>
                     {role.replace('_', ' ')}
                   </option>
@@ -652,7 +654,7 @@ export default function PlatformAdminConsole() {
                   }
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {['platform_admin', 'clinic_admin', 'doctor', 'receptionist', 'staff', 'patient'].map((role) => (
+                  {USER_ROLE_OPTIONS.map((role) => (
                     <option key={role} value={role}>
                       {role.replace('_', ' ')}
                     </option>

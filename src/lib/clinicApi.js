@@ -3,6 +3,7 @@ import { ApiError } from './api.js';
 export const CLINIC_SLUG = import.meta.env.VITE_CLINIC_SLUG?.trim() || 'demo-clinic';
 
 const LOCAL_STATE_KEY = 'dcms-clinic-demo-state-v1';
+const DEMO_FALLBACKS_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_FALLBACKS !== 'false';
 const SLOT_DURATION_MINUTES = 30;
 const MIN_BOOKING_LEAD_MINUTES = 30;
 const MAX_BOOKING_ADVANCE_DAYS = 30;
@@ -149,7 +150,7 @@ function updateLocalState(updater) {
 }
 
 function isMissingFeatureError(error) {
-  return error instanceof ApiError && [404, 405, 501].includes(error.statusCode);
+  return DEMO_FALLBACKS_ENABLED && error instanceof ApiError && [404, 405, 501].includes(error.statusCode);
 }
 
 function normalizeDepartment(department) {

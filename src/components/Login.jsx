@@ -23,6 +23,10 @@ export default function Login() {
       return '/appointments';
     }
 
+    if (role === 'cashier') {
+      return '/billing';
+    }
+
     return '/records';
   };
 
