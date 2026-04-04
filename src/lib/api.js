@@ -7,6 +7,10 @@ const protectSafeMethods = import.meta.env.VITE_TURNSTILE_PROTECT_SAFE_METHODS =
 
 export const API_BASE_URL = configuredBaseUrl.replace(/\/$/, '');
 
+if (!import.meta.env.VITE_API_BASE_URL && import.meta.env.PROD) {
+  console.warn('[DCMS] VITE_API_BASE_URL is not set. Falling back to localhost:3000.');
+}
+
 function resolveApiPath(path) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   if (normalizedPath.startsWith('/api/')) {

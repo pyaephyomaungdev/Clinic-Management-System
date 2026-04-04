@@ -8,7 +8,7 @@ const DEMO_FALLBACKS_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABL
 const SLOT_DURATION_MINUTES = 30;
 const MIN_BOOKING_LEAD_MINUTES = 30;
 const MAX_BOOKING_ADVANCE_DAYS = 30;
-const DEFAULT_TIMEZONE = 'Asia/Bangkok';
+export const DEFAULT_TIMEZONE = 'Asia/Yangon';
 const ACTIVE_BOOKING_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in']);
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

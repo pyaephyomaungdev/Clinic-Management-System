@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import ModalPortal from './ModalPortal.jsx';
 import FloatingAssistantWidget from './FloatingAssistantWidget.jsx';
+import LoadingSpinner from './LoadingSpinner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isApiError } from '../lib/api.js';
 import {
@@ -15,6 +16,7 @@ import {
   loadMyAppointments,
   loadTelegramConnection,
   submitTriage,
+  DEFAULT_TIMEZONE,
 } from '../lib/clinicApi.js';
 
 const initialBookingState = {
@@ -25,7 +27,7 @@ const initialBookingState = {
 };
 
 const CALENDAR_DAY_COUNT = 30;
-const CALENDAR_TIMEZONE = 'Asia/Bangkok';
+const CALENDAR_TIMEZONE = DEFAULT_TIMEZONE;
 
 function getErrorMessage(error, fallbackMessage) {
   return isApiError(error) ? error.message : fallbackMessage;
@@ -747,8 +749,8 @@ export default function AppointmentHub() {
           )}
 
           {isLoading && (
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-500 shadow-sm">
-              Loading appointment workspace...
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-500 shadow-sm flex items-center gap-2">
+              <LoadingSpinner inline label="Loading appointment workspace..." />
             </div>
           )}
 

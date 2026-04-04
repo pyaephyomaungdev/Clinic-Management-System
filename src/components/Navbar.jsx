@@ -56,6 +56,12 @@ export default function Navbar() {
       isActive: pathname === '/admin',
     },
     {
+      to: '/about',
+      label: 'About Us',
+      show: true,
+      isActive: pathname === '/about',
+    },
+    {
       to: '/contact',
       label: 'Contact',
       show: true,

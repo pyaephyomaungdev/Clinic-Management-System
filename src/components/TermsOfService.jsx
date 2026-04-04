@@ -10,7 +10,7 @@ export default function TermsOfService() {
         <section>
           <h2 className="text-xl font-bold text-slate-900 mb-3">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using the Brainiacs Dental Clinic Management System ("Service"), you agree
+            By accessing or using the Brainiacs Clinic Management System ("Service"), you agree
             to be bound by these Terms of Service. If you do not agree with any part of these terms,
             you may not access the Service.
           </p>
@@ -21,7 +21,7 @@ export default function TermsOfService() {
           <p>
             Brainiacs provides a cloud-based clinic management platform that includes appointment
             scheduling, patient records management, billing, doctor workspaces, and administrative
-            tools for dental clinics.
+            tools for clinics.
           </p>
         </section>
 
@@ -95,7 +95,7 @@ export default function TermsOfService() {
           <h2 className="text-xl font-bold text-slate-900 mb-3">10. Contact</h2>
           <p>
             Questions about these Terms? Reach out at{' '}
-            <span className="text-indigo-600 font-medium">legal@braniacs.com</span>.
+            <span className="text-indigo-600 font-medium">legal@brainiacs.com</span>.
           </p>
         </section>
       </div>

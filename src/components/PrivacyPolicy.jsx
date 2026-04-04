@@ -50,7 +50,7 @@ export default function PrivacyPolicy() {
           <p>
             You have the right to access, correct, or delete your personal data. You may also request
             a copy of the data we hold about you. To exercise any of these rights, please contact us
-            at <span className="text-indigo-600 font-medium">support@braniacs.com</span>.
+            at <span className="text-indigo-600 font-medium">support@brainiacs.com</span>.
           </p>
         </section>
 
@@ -75,7 +75,7 @@ export default function PrivacyPolicy() {
           <h2 className="text-xl font-bold text-slate-900 mb-3">8. Contact Us</h2>
           <p>
             If you have questions about this Privacy Policy, please contact us at{' '}
-            <span className="text-indigo-600 font-medium">support@braniacs.com</span> or call{' '}
+            <span className="text-indigo-600 font-medium">support@brainiacs.com</span> or call{' '}
             <span className="text-indigo-600 font-medium">+1 (234) 567-890</span>.
           </p>
         </section>

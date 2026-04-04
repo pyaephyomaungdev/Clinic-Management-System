@@ -17,6 +17,11 @@ import AppointmentHub from './components/AppointmentHub.jsx';
 import AdminConsole from './components/AdminConsole.jsx';
 import Register from './components/Register.jsx';
 import PharmacyCatalogPage from './components/PharmacyCatalogPage.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import Stats from './components/Stats.jsx';
+import HowItWorks from './components/HowItWorks.jsx';
+import Testimonials from './components/Testimonials.jsx';
+import CallToAction from './components/CallToAction.jsx';
 
 function App() {
   const location = useLocation();
@@ -26,6 +31,7 @@ function App() {
     <div className="min-h-screen font-sans text-slate-900 antialiased flex flex-col">
       {!isAuthPage && <Navbar />}
       <main className="flex-grow">
+        <ErrorBoundary>
         <Routes>
           <Route
             path="/"
@@ -33,6 +39,10 @@ function App() {
               <>
                 <Hero />
                 <Features />
+                <Stats />
+                <HowItWorks />
+                <Testimonials />
+                <CallToAction />
               </>
             }
           />
@@ -109,6 +119,7 @@ function App() {
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
         </Routes>
+        </ErrorBoundary>
       </main>
       {!isAuthPage && <Footer />}
     </div>

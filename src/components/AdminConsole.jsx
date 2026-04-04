@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import ModalPortal from './ModalPortal.jsx';
 import PlatformAdminConsole from './PlatformAdminConsole.jsx';
+import LoadingSpinner from './LoadingSpinner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isApiError } from '../lib/api.js';
 import {
@@ -15,6 +16,7 @@ import {
   setDoctorConsultationFee,
   toMinutes,
   toTimeString,
+  DEFAULT_TIMEZONE,
 } from '../lib/clinicApi.js';
 
 const dayOptions = [
@@ -37,7 +39,7 @@ const defaultDepartmentForm = {
 const defaultScheduleForm = {
   doctorId: '',
   workDays: [1, 2, 3, 4, 5],
-  timezone: 'Asia/Bangkok',
+  timezone: DEFAULT_TIMEZONE,
   dayStart: '09:00',
   lunchStart: '12:00',
   lunchEnd: '13:00',
@@ -137,6 +139,8 @@ function ClinicAdminConsole() {
   const [scheduleError, setScheduleError] = useState('');
   const [isScheduleSaving, setIsScheduleSaving] = useState(false);
   const [scheduleDoctorFilter, setScheduleDoctorFilter] = useState('');
+  const [savingAssignmentIds, setSavingAssignmentIds] = useState(new Set());
+  const [savingFeeIds, setSavingFeeIds] = useState(new Set());
 
   useEffect(() => {
     const controller = new AbortController();
@@ -288,6 +292,7 @@ function ClinicAdminConsole() {
       return;
     }
 
+    setSavingAssignmentIds((prev) => new Set(prev).add(doctorId));
     try {
       await assignDoctorToDepartment(request, { doctorId, departmentId });
       const selectedDepartment = departments.find((item) => item._id === departmentId);
@@ -304,6 +309,12 @@ function ClinicAdminConsole() {
       );
     } catch (error) {
       setLoadError(getErrorMessage(error, 'The doctor assignment could not be saved.'));
+    } finally {
+      setSavingAssignmentIds((prev) => {
+        const next = new Set(prev);
+        next.delete(doctorId);
+        return next;
+      });
     }
   };
 
@@ -316,6 +327,7 @@ function ClinicAdminConsole() {
       return;
     }
 
+    setSavingFeeIds((prev) => new Set(prev).add(doctorId));
     try {
       await setDoctorConsultationFee(request, doctorId, fee);
       setDoctors((current) =>
@@ -325,6 +337,12 @@ function ClinicAdminConsole() {
       );
     } catch (error) {
       setLoadError(getErrorMessage(error, 'The consultation fee could not be saved.'));
+    } finally {
+      setSavingFeeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(doctorId);
+        return next;
+      });
     }
   };
 
@@ -407,8 +425,8 @@ function ClinicAdminConsole() {
       )}
 
       {isLoading && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-500 shadow-sm">
-          Loading administration data...
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-500 shadow-sm flex items-center gap-2">
+          <LoadingSpinner inline label="Loading administration data..." />
         </div>
       )}
 
@@ -540,9 +558,10 @@ function ClinicAdminConsole() {
                   </select>
                   <button
                     onClick={() => void handleSaveDoctorAssignment(doctor._id)}
-                    className="rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white hover:bg-indigo-700"
+                    disabled={savingAssignmentIds.has(doctor._id)}
+                    className="rounded-2xl bg-indigo-600 px-4 py-3 font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
                   >
-                    Save Assignment
+                    {savingAssignmentIds.has(doctor._id) ? 'Saving...' : 'Save Assignment'}
                   </button>
                 </div>
               </div>
@@ -565,9 +584,10 @@ function ClinicAdminConsole() {
                 />
                 <button
                   onClick={() => void handleSaveConsultationFee(doctor._id)}
-                  className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100"
+                  disabled={savingFeeIds.has(doctor._id)}
+                  className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:bg-indigo-50 disabled:text-indigo-300"
                 >
-                  Save Fee
+                  {savingFeeIds.has(doctor._id) ? 'Saving...' : 'Save Fee'}
                 </button>
                 {doctor.consultationFee != null && (
                   <span className="text-xs text-slate-500">

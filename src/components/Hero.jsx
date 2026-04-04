@@ -81,7 +81,7 @@ export default function Hero() {
                         ? 'Open Pharmacy'
                     : 'Open Workspace'
               : 'Sign In'}{' '}
-            <span className="ml-1 inline-block transition-transform duration-300 ease-out group-hover:translate-x-1">{'->'}</span>
+            <span className="ml-1 inline-block transition-transform duration-300 ease-out group-hover:translate-x-1">&rarr;</span>
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ModalPortal from './ModalPortal.jsx';
 import DoctorWorkspacePanel from './DoctorWorkspaceModal.jsx';
+import LoadingSpinner from './LoadingSpinner.jsx';
 import PharmacyWorkspacePanel from './PharmacyWorkspacePanel.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
@@ -872,8 +873,8 @@ export default function PatientRecords() {
       )}
 
       {isDetailRoute && isRecordLoading && !selectedRecord && (
-        <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white px-6 py-5 text-sm font-medium text-slate-500 shadow-sm">
-          Loading patient detail...
+        <div className="mb-6 rounded-[2rem] border border-slate-200 bg-white px-6 py-5 text-sm font-medium text-slate-500 shadow-sm flex items-center gap-2">
+          <LoadingSpinner inline label="Loading patient detail..." />
         </div>
       )}
 

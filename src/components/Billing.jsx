@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ModalPortal from './ModalPortal.jsx';
+import LoadingSpinner from './LoadingSpinner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebouncedValue } from '../hooks/useDebouncedValue.js';
 import { isApiError } from '../lib/api.js';
@@ -670,8 +671,8 @@ export default function Billing() {
           )}
 
           {isInvoiceLoading && (
-            <div className="mt-6 rounded-3xl border border-slate-100 bg-slate-50 px-6 py-16 text-center text-sm font-medium text-slate-500">
-              Loading invoice detail...
+            <div className="mt-6 rounded-3xl border border-slate-100 bg-slate-50 px-6 py-16 text-center text-sm font-medium text-slate-500 flex flex-col items-center justify-center gap-3">
+              <LoadingSpinner inline label="Loading invoice detail..." />
             </div>
           )}
 

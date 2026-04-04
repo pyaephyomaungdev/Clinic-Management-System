@@ -10,7 +10,7 @@ function FooterLink({ to, children }) {
 
 export default function Footer() {
   return (
-    <footer className="bg-white text-white py-20 px-6">
+    <footer className="bg-white text-slate-600 py-20 px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-12">
         <div className="max-w-sm">
           <Link className="flex items-center gap-2 mb-6 text-slate-900" to="/">

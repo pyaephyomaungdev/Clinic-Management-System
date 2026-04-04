@@ -3,7 +3,7 @@ export default function Features() {
     <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-            <h2 className="text-4xl font-bold text-navy-900 max-w-md">Comprehensive tools for every department.</h2>
+            <h2 className="text-4xl font-bold text-slate-900 max-w-md">Comprehensive tools for every department.</h2>
             <p className="text-slate-500 max-w-xs text-sm">Everything you need to run a digital-first clinic, from patient intake to final discharge.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
