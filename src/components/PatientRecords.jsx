@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ModalPortal from './ModalPortal.jsx';
 import DoctorWorkspacePanel from './DoctorWorkspaceModal.jsx';
@@ -73,6 +73,12 @@ function formatDateTime(value) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatStatus(status) {
+  return String(status ?? '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function splitList(value) {
@@ -170,21 +176,55 @@ export default function PatientRecords() {
   const detailSectionRef = useRef(null);
 
   const isPharmacist = user?.role === 'pharmacist';
+  const basePath = isPharmacist ? '/pharmacy' : '/records';
   const canCreatePatients = ['clinic_admin', 'receptionist', 'staff'].includes(user?.role ?? '');
   const canManageClinicalNotes = ['clinic_admin', 'doctor'].includes(user?.role ?? '');
   const canManageDispensing = ['clinic_admin', 'pharmacist'].includes(user?.role ?? '');
-  const canManageAttachments = ['clinic_admin', 'doctor', 'staff'].includes(user?.role ?? '');
+  const canManageAttachments = ['clinic_admin', 'doctor', 'pharmacist', 'staff'].includes(user?.role ?? '');
   const isDetailRoute = Boolean(routePatientId);
   const isRecordActionPending = (patientId, mode) =>
     recordActionState.patientId === patientId && recordActionState.mode === mode;
   const isAttachmentActionPending = (attachmentId, mode) =>
     attachmentActionState.attachmentId === attachmentId && attachmentActionState.mode === mode;
+  const recentAppointments = useMemo(
+    () =>
+      [...(selectedRecord?.appointments ?? [])].sort(
+        (left, right) => new Date(right.scheduledAt ?? right.createdAt ?? 0).getTime() - new Date(left.scheduledAt ?? left.createdAt ?? 0).getTime(),
+      ),
+    [selectedRecord?.appointments],
+  );
+  const recentAttachments = useMemo(
+    () =>
+      [...(selectedRecord?.attachments ?? [])].sort(
+        (left, right) => new Date(right.uploadedAt ?? right.createdAt ?? 0).getTime() - new Date(left.uploadedAt ?? left.createdAt ?? 0).getTime(),
+      ),
+    [selectedRecord?.attachments],
+  );
+  const nextAppointment = useMemo(() => {
+    const now = Date.now();
+    return (
+      [...(selectedRecord?.appointments ?? [])]
+        .filter((appointment) => appointment.status !== 'cancelled')
+        .sort(
+          (left, right) => new Date(left.scheduledAt ?? left.createdAt ?? 0).getTime() - new Date(right.scheduledAt ?? right.createdAt ?? 0).getTime(),
+        )
+        .find((appointment) => new Date(appointment.scheduledAt ?? appointment.createdAt ?? 0).getTime() >= now) ??
+      null
+    );
+  }, [selectedRecord?.appointments]);
+  const latestEncounter = useMemo(
+    () =>
+      [...(selectedRecord?.encounters ?? [])].sort(
+        (left, right) => new Date(right.updatedAt ?? right.createdAt ?? 0).getTime() - new Date(left.updatedAt ?? left.createdAt ?? 0).getTime(),
+      )[0] ?? null,
+    [selectedRecord?.encounters],
+  );
 
   const handleCloseCreateModal = () => {
     setIsCreateModalOpen(false);
   };
 
-  const loadPatientRecord = async (patientId, action = 'detail') => {
+  const loadPatientRecord = useCallback(async (patientId, action = 'detail') => {
     setIsRecordLoading(true);
     setRecordActionState({ patientId, mode: action });
     setSelectedPatientId(patientId);
@@ -203,13 +243,19 @@ export default function PatientRecords() {
       setIsRecordLoading(false);
       setRecordActionState({ patientId: '', mode: '' });
     }
-  };
+  }, [request]);
 
   useEffect(() => () => {
     if (previewUrl) {
       window.URL.revokeObjectURL(previewUrl);
     }
   }, [previewUrl]);
+
+  useEffect(() => {
+    handleClosePreview();
+    // We only want to reset preview state when the selected patient changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecord?.patient?._id]);
 
   useEffect(() => {
     if (!selectedRecord) {
@@ -235,12 +281,13 @@ export default function PatientRecords() {
       return;
     }
 
+    setSelectedRecord(null);
     void loadPatientRecord(routePatientId, 'detail').then((result) => {
       if (!result) {
-        navigate('/records');
+        navigate(basePath);
       }
     });
-  }, [navigate, request, routePatientId, selectedPatientId, selectedRecord?.patient?._id]);
+  }, [basePath, loadPatientRecord, navigate, routePatientId, selectedPatientId, selectedRecord?.patient?._id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -338,18 +385,18 @@ export default function PatientRecords() {
     const { action = 'detail' } = options;
     setRecordActionState({ patientId, mode: action });
     setSelectedPatientId(patientId);
-    navigate(`/records/${patientId}`);
+    navigate(`${basePath}/${patientId}`);
     return null;
   };
 
-  const handleRefreshSelectedRecord = async () => {
+  const handleRefreshSelectedRecord = useCallback(async () => {
     const patientId = routePatientId ?? selectedPatientId;
     if (!patientId) {
       return null;
     }
 
     return loadPatientRecord(patientId, 'detail');
-  };
+  }, [loadPatientRecord, routePatientId, selectedPatientId]);
 
   const loadAttachmentBlob = async (attachment) => {
     const response = await request(`/attachments/${attachment._id}/content`);
@@ -503,19 +550,21 @@ export default function PatientRecords() {
                 ? 'Review finalized medication plans, patient context, and dispensing status in one detail view.'
                 : 'Unified clinical detail view with attachments, encounter notes, and medication plan.'
               : isPharmacist
-                ? 'Open a patient detail page to review prescriptions and update pharmacy dispensing.'
+                ? 'Open a dedicated pharmacy detail page to review prescriptions, attachments, and dispensing status.'
                 : 'Live records, admissions, and profile snapshots synced from the backend.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {isDetailRoute ? (
-            <button
-              onClick={() => navigate('/records')}
-              className="px-5 py-2 rounded-2xl font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
-            >
-              Back to Directory
-            </button>
+            <>
+              <button
+                onClick={() => navigate(basePath)}
+                className="px-5 py-2 rounded-2xl font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                {isPharmacist ? 'Back to Pharmacy' : 'Back to Directory'}
+              </button>
+            </>
           ) : (
             <>
               <button
@@ -524,13 +573,14 @@ export default function PatientRecords() {
               >
                 Refresh
               </button>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                disabled={!canCreatePatients}
-                className="bg-indigo-600 text-white px-5 py-2 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:cursor-not-allowed disabled:bg-indigo-300"
-              >
-                + Admit New Patient
-              </button>
+              {canCreatePatients && (
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="bg-indigo-600 text-white px-5 py-2 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                >
+                  + Admit New Patient
+                </button>
+              )}
             </>
           )}
         </div>
@@ -539,11 +589,11 @@ export default function PatientRecords() {
       {!isDetailRoute && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Visible Patients</p>
+            <p className="text-sm text-slate-500">{isPharmacist ? 'Queue Patients' : 'Visible Patients'}</p>
             <h2 className="mt-2 text-3xl font-bold text-slate-900">{patientsResponse.pagination.total ?? 0}</h2>
           </div>
           <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-500">Access Level</p>
+            <p className="text-sm text-slate-500">{isPharmacist ? 'Workspace' : 'Access Level'}</p>
             <h2 className="mt-2 text-xl font-bold capitalize text-slate-900">{(user?.role ?? 'guest').replace('_', ' ')}</h2>
           </div>
           <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
@@ -554,13 +604,30 @@ export default function PatientRecords() {
       )}
 
       {selectedRecord && (
-        <section ref={detailSectionRef} className="mb-8 rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 lg:flex-row lg:items-start lg:justify-between">
+        <section
+          ref={detailSectionRef}
+          className="mb-8 overflow-hidden rounded-[2rem] border border-slate-200/80 bg-[radial-gradient(circle_at_top_right,rgba(129,140,248,0.10),transparent_28%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)]"
+        >
+          <div className="flex flex-col gap-5 border-b border-slate-100 pb-6 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-indigo-500">Patient Detail</p>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-indigo-500">Patient Detail</p>
               <h2 className="mt-2 text-3xl font-bold text-slate-900">{selectedRecord.patient.fullName}</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {selectedRecord.patient.patientCode} • {selectedRecord.patient.room || 'Unassigned room'}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                  {selectedRecord.patient.patientCode}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                  {selectedRecord.patient.room || 'Unassigned room'}
+                </span>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${patientConditionStyles[selectedRecord.patient.condition ?? 'Stable']}`}>
+                  {selectedRecord.patient.condition ?? 'Stable'}
+                </span>
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600">
+                  {formatAge(selectedRecord.patient.dateOfBirth)} • {selectedRecord.patient.gender || 'Gender unavailable'}
+                </span>
+              </div>
+              <p className="mt-3 max-w-3xl text-sm text-slate-500">
+                Clean clinical workspace for visit notes, prescriptions, and patient files. Everything shown below belongs only to this patient record.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -574,7 +641,7 @@ export default function PatientRecords() {
                 {isRecordActionPending(selectedPatientId, 'detail') ? 'Refreshing...' : 'Refresh Details'}
               </button>
               <button
-                onClick={() => navigate('/records')}
+                onClick={() => navigate(basePath)}
                 className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
               >
                 Close Details
@@ -582,52 +649,99 @@ export default function PatientRecords() {
             </div>
           </div>
 
-          <div className="mt-8 space-y-8">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Appointments</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{selectedRecord.appointments.length}</p>
-              </div>
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Invoices</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{selectedRecord.invoices.length}</p>
-              </div>
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Encounters</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{selectedRecord.encounters.length}</p>
-              </div>
-              <div className="rounded-3xl bg-slate-50 p-5">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Attachments</p>
-                <p className="mt-2 text-3xl font-bold text-slate-900">{selectedRecord.attachments.length}</p>
-              </div>
-            </div>
+          <div className="mt-8 space-y-6">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <div className="space-y-5">
+                <section className="rounded-[1.75rem] border border-white/80 bg-white/85 p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Patient Overview</p>
+                <dl className="mt-4 space-y-4">
+                  <div>
+                    <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Phone</dt>
+                    <dd className="mt-1 text-sm font-semibold text-slate-900">{selectedRecord.patient.phone || 'Not provided'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Address</dt>
+                    <dd className="mt-1 text-sm text-slate-600">{selectedRecord.patient.address || 'No address on file'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Emergency Contact</dt>
+                    <dd className="mt-1 text-sm text-slate-600">
+                      {selectedRecord.patient.emergencyContactName || 'Not provided'}
+                      {selectedRecord.patient.emergencyContactPhone ? ` • ${selectedRecord.patient.emergencyContactPhone}` : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Allergies</dt>
+                    <dd className="mt-2 flex flex-wrap gap-2">
+                      {selectedRecord.patient.allergies?.length
+                        ? selectedRecord.patient.allergies.map((allergy) => (
+                          <span key={allergy} className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">
+                            {allergy}
+                          </span>
+                        ))
+                        : <span className="text-sm text-slate-500">No allergy notes recorded.</span>}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Chronic Conditions</dt>
+                    <dd className="mt-2 flex flex-wrap gap-2">
+                      {selectedRecord.patient.chronicConditions?.length
+                        ? selectedRecord.patient.chronicConditions.map((condition) => (
+                          <span key={condition} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                            {condition}
+                          </span>
+                        ))
+                        : <span className="text-sm text-slate-500">No chronic condition notes recorded.</span>}
+                    </dd>
+                  </div>
+                </dl>
+                </section>
 
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400">Latest Activity</h3>
-                <ul className="mt-4 space-y-3">
-                  {selectedRecord.appointments.slice(0, 3).map((appointment) => (
-                    <li key={appointment._id} className="rounded-2xl border border-slate-100 px-4 py-3">
-                      <p className="font-semibold text-slate-800">{appointment.reason || 'Consultation'}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {appointment.status} • {formatDateTime(appointment.scheduledAt)}
+                <section className="rounded-[1.75rem] border border-white/80 bg-white/85 p-5 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Visit Snapshot</p>
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {nextAppointment?.reason || recentAppointments[0]?.reason || 'No scheduled visit yet'}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {nextAppointment
+                        ? formatDateTime(nextAppointment.scheduledAt)
+                        : recentAppointments[0]
+                          ? formatDateTime(recentAppointments[0].scheduledAt)
+                          : 'Add an appointment to start clinical documentation.'}
+                    </p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                      {nextAppointment ? formatStatus(nextAppointment.status) : 'Waiting for visit'}
+                    </p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Appointments</p>
+                      <p className="mt-2 text-2xl font-bold text-slate-900">{selectedRecord.appointments.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Encounters</p>
+                      <p className="mt-2 text-2xl font-bold text-slate-900">{selectedRecord.encounters.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Files</p>
+                      <p className="mt-2 text-2xl font-bold text-slate-900">{selectedRecord.attachments.length}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Latest Encounter</p>
+                      <p className="mt-2 text-sm font-bold text-slate-900">
+                        {latestEncounter ? formatStatus(latestEncounter.status) : 'Not started'}
                       </p>
-                    </li>
-                  ))}
-
-                  {selectedRecord.appointments.length === 0 && (
-                    <li className="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">
-                      No appointments found for this patient yet.
-                    </li>
-                  )}
-                </ul>
+                    </div>
+                  </div>
+                </section>
               </div>
 
-              <div>
+              <section className="rounded-[1.75rem] border border-white/80 bg-white/85 p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-400">Clinical Attachments</h3>
-                    <p className="mt-1 text-xs text-slate-500">Store scans, consent forms, and lab PDFs with secure access controls.</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Clinical Files</p>
+                    <p className="mt-1 text-sm text-slate-500">Latest files for this patient only.</p>
                   </div>
                   {canManageAttachments && (
                     <label className="inline-flex cursor-pointer items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50">
@@ -642,74 +756,118 @@ export default function PatientRecords() {
                   )}
                 </div>
 
-                <ul className="mt-4 space-y-3 max-h-[28rem] overflow-y-auto pr-1">
-                  {selectedRecord.attachments.map((attachment) => (
-                    <li key={attachment._id} className="rounded-2xl border border-slate-100 px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-800">{attachment.filename}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {formatFileSize(attachment.size)} • {attachment.contentType}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-400">
-                            {attachment.uploadedAt ? formatDateTime(attachment.uploadedAt) : 'Upload pending'}
-                          </p>
-                        </div>
-                        {canManageAttachments && (
-                          <div className="flex shrink-0 flex-wrap justify-end gap-2">
-                            {isPreviewableAttachment(attachment) && (
-                              <button
-                                onClick={() => void handlePreviewAttachment(attachment)}
-                                disabled={isAttachmentActionPending(attachment._id, 'preview')}
-                                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
-                              >
-                                {isAttachmentActionPending(attachment._id, 'preview') && <ButtonSpinner />}
-                                {isAttachmentActionPending(attachment._id, 'preview') ? 'Loading...' : 'Preview'}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => void handleDownloadAttachment(attachment)}
-                              disabled={isAttachmentActionPending(attachment._id, 'download')}
-                              className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-70"
-                            >
-                              {isAttachmentActionPending(attachment._id, 'download') && <ButtonSpinner />}
-                              {isAttachmentActionPending(attachment._id, 'download') ? 'Preparing...' : 'Download'}
-                            </button>
-                          </div>
-                        )}
+                <ul className="mt-4 space-y-3">
+                  {recentAttachments.slice(0, 5).map((attachment) => (
+                    <li key={attachment._id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900">{attachment.filename}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {formatFileSize(attachment.size)} • {attachment.contentType}
+                        </p>
                       </div>
+                      {canManageAttachments && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {isPreviewableAttachment(attachment) && (
+                            <button
+                              onClick={() => void handlePreviewAttachment(attachment)}
+                              disabled={isAttachmentActionPending(attachment._id, 'preview')}
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
+                            >
+                              {isAttachmentActionPending(attachment._id, 'preview') && <ButtonSpinner />}
+                              {isAttachmentActionPending(attachment._id, 'preview') ? 'Loading...' : 'Preview'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => void handleDownloadAttachment(attachment)}
+                            disabled={isAttachmentActionPending(attachment._id, 'download')}
+                            className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-70"
+                          >
+                            {isAttachmentActionPending(attachment._id, 'download') && <ButtonSpinner />}
+                            {isAttachmentActionPending(attachment._id, 'download') ? 'Preparing...' : 'Download'}
+                          </button>
+                        </div>
+                      )}
                     </li>
                   ))}
 
-                  {selectedRecord.attachments.length === 0 && (
+                  {recentAttachments.length === 0 && (
                     <li className="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">
                       No PDF or image attachments have been added for this patient yet.
                     </li>
                   )}
                 </ul>
-              </div>
+              </section>
             </div>
 
-            {canManageClinicalNotes && (
-              <DoctorWorkspacePanel
-                selectedRecord={selectedRecord}
-                onRecordUpdated={handleRefreshSelectedRecord}
-              />
-            )}
+            <div className="space-y-6">
+              {canManageClinicalNotes && (
+                <DoctorWorkspacePanel
+                  selectedRecord={selectedRecord}
+                  onRecordUpdated={handleRefreshSelectedRecord}
+                />
+              )}
 
-            {canManageDispensing && (
-              <PharmacyWorkspacePanel
-                selectedRecord={selectedRecord}
-                onRecordUpdated={handleRefreshSelectedRecord}
-              />
-            )}
+              {canManageDispensing && (
+                <PharmacyWorkspacePanel
+                  selectedRecord={selectedRecord}
+                  onRecordUpdated={handleRefreshSelectedRecord}
+                />
+              )}
+
+              <section className="rounded-[1.75rem] border border-white/80 bg-white/85 p-6 shadow-sm">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Recent Activity</p>
+                    <h3 className="mt-2 text-2xl font-bold text-slate-900">Visit History</h3>
+                  </div>
+                  <p className="text-sm text-slate-500">Most recent appointments and encounter context for quick review.</p>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  {recentAppointments.slice(0, 4).map((appointment) => {
+                    const encounter = selectedRecord.encounters.find((item) => item.appointmentId === appointment._id);
+                    return (
+                      <article key={appointment._id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{appointment.reason || 'Consultation visit'}</p>
+                            <p className="mt-1 text-sm text-slate-500">{formatDateTime(appointment.scheduledAt)}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700">
+                              {formatStatus(appointment.status)}
+                            </span>
+                            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                              {encounter ? formatStatus(encounter.status) : 'Encounter pending'}
+                            </span>
+                          </div>
+                        </div>
+                        {encounter?.diagnosis && (
+                          <p className="mt-3 text-sm text-slate-600">
+                            Latest diagnosis: <span className="font-medium text-slate-800">{encounter.diagnosis}</span>
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+
+                  {recentAppointments.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-4 text-sm text-slate-500">
+                      No appointments found for this patient yet.
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
           </div>
         </section>
       )}
 
       {!isDetailRoute && !selectedRecord && !isRecordLoading && (
         <div className="mb-6 rounded-[2rem] border border-dashed border-slate-200 bg-white/70 px-6 py-5 text-sm text-slate-500">
-          Choose any patient row to open a single detail view for profile history, attachments, and doctor notes.
+          {isPharmacist
+            ? 'Choose any patient row to open the pharmacy detail view for prescriptions, attachments, and dispense status.'
+            : 'Choose any patient row to open a single detail view for profile history, attachments, and doctor notes.'}
         </div>
       )}
 
@@ -729,7 +887,7 @@ export default function PatientRecords() {
             placeholder="Search patients by name, ID, or phone..."
             className="w-full md:w-96 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
           />
-          {isLoading && <span className="text-sm font-medium text-slate-500">Syncing patient list...</span>}
+          {isLoading && <span className="text-sm font-medium text-slate-500">{isPharmacist ? 'Refreshing pharmacy queue...' : 'Syncing patient list...'}</span>}
         </div>
 
         {loadError && (
@@ -779,10 +937,16 @@ export default function PatientRecords() {
                       >
                         {isRecordActionPending(patient._id, 'detail') && <ButtonSpinner />}
                         {isRecordActionPending(patient._id, 'detail')
-                          ? 'Opening Details...'
+                          ? isPharmacist
+                            ? 'Opening Pharmacy View...'
+                            : 'Opening Details...'
                           : selectedPatientId === patient._id
-                            ? 'Refresh Details'
-                            : 'Open Details'}
+                            ? isPharmacist
+                              ? 'Refresh Pharmacy View'
+                              : 'Refresh Details'
+                            : isPharmacist
+                              ? 'Open Pharmacy View'
+                              : 'Open Details'}
                       </button>
                     </div>
                   </td>

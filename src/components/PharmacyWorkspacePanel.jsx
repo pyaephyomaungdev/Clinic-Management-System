@@ -39,9 +39,14 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
-export default function PharmacyWorkspacePanel({ selectedRecord, onRecordUpdated }) {
+export default function PharmacyWorkspacePanel({
+  selectedRecord,
+  onRecordUpdated,
+  defaultTab = 'dispensing',
+  catalogOnly = false,
+}) {
   const { request } = useAuth();
-  const [activeTab, setActiveTab] = useState('dispensing');
+  const [activeTab, setActiveTab] = useState(catalogOnly ? 'catalog' : defaultTab);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState('');
   const [dispenseStatus, setDispenseStatus] = useState('pending');
   const [dispenseNotes, setDispenseNotes] = useState('');
@@ -57,6 +62,10 @@ export default function PharmacyWorkspacePanel({ selectedRecord, onRecordUpdated
   const [medForm, setMedForm] = useState({
     name: '', genericName: '', category: '', defaultDosage: '', defaultFrequency: '', defaultDuration: '', unitPrice: '',
   });
+
+  useEffect(() => {
+    setActiveTab(catalogOnly ? 'catalog' : defaultTab);
+  }, [catalogOnly, defaultTab]);
 
   useEffect(() => {
     if (activeTab !== 'catalog') return;
@@ -90,9 +99,11 @@ export default function PharmacyWorkspacePanel({ selectedRecord, onRecordUpdated
 
   useEffect(() => {
     const nextPrescription = prescriptions[0] ?? null;
-    setSelectedPrescriptionId(nextPrescription?._id ?? '');
-    setDispenseStatus(nextPrescription?.dispenseStatus ?? 'pending');
-    setDispenseNotes(nextPrescription?.dispenseNotes ?? '');
+    setSelectedPrescriptionId((current) =>
+      current && prescriptions.some((prescription) => prescription._id === current)
+        ? current
+        : nextPrescription?._id ?? '',
+    );
     setSaveError('');
   }, [prescriptions]);
 
@@ -104,7 +115,7 @@ export default function PharmacyWorkspacePanel({ selectedRecord, onRecordUpdated
     setDispenseStatus(selectedPrescription.dispenseStatus ?? 'pending');
     setDispenseNotes(selectedPrescription.dispenseNotes ?? '');
     setSaveError('');
-  }, [selectedPrescription?._id, selectedPrescription?.dispenseNotes, selectedPrescription?.dispenseStatus]);
+  }, [selectedPrescription]);
 
   const handleSaveDispense = async (event) => {
     event.preventDefault();
@@ -202,34 +213,42 @@ export default function PharmacyWorkspacePanel({ selectedRecord, onRecordUpdated
     }
   };
 
+  const eyebrow = catalogOnly ? 'Pharmacy Catalog' : 'Pharmacy Workspace';
+  const title = catalogOnly ? 'Medication Catalog' : 'Medication Dispensing';
+  const subtitle = catalogOnly
+    ? 'Add medicines, pricing, and reusable prescribing defaults for doctors and billing.'
+    : 'Review finalized prescriptions and manage the medication catalog.';
+
   return (
-    <section className="mt-8 rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm">
+    <section className={`${catalogOnly ? '' : 'mt-8 '}rounded-[2rem] border border-slate-100 bg-white p-8 shadow-sm`}>
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.35em] text-indigo-500">Pharmacy Workspace</p>
-          <h2 className="mt-2 text-3xl font-bold text-slate-900">Medication Dispensing</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.35em] text-indigo-500">{eyebrow}</p>
+          <h2 className="mt-2 text-3xl font-bold text-slate-900">{title}</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Review finalized prescriptions and manage the medication catalog.
+            {subtitle}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {[
-            { key: 'dispensing', label: 'Dispensing' },
-            { key: 'catalog', label: 'Medication Catalog' },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`rounded-2xl px-5 py-2.5 text-sm font-bold transition-all ${
-                activeTab === tab.key
-                  ? 'bg-slate-900 text-white shadow-lg'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {!catalogOnly && (
+          <div className="flex items-center gap-3">
+            {[
+              { key: 'dispensing', label: 'Dispensing' },
+              { key: 'catalog', label: 'Medication Catalog' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`rounded-2xl px-5 py-2.5 text-sm font-bold transition-all ${
+                  activeTab === tab.key
+                    ? 'bg-slate-900 text-white shadow-lg'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {activeTab === 'catalog' && (

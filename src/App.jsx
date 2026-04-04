@@ -16,6 +16,7 @@ import RoleRoute from './components/RoleRoute.jsx';
 import AppointmentHub from './components/AppointmentHub.jsx';
 import AdminConsole from './components/AdminConsole.jsx';
 import Register from './components/Register.jsx';
+import PharmacyCatalogPage from './components/PharmacyCatalogPage.jsx';
 
 function App() {
   const location = useLocation();
@@ -40,7 +41,7 @@ function App() {
           <Route
             path="/records"
             element={
-              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'staff']}>
+              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'receptionist', 'staff']}>
                 <PatientRecords />
               </RoleRoute>
             }
@@ -48,8 +49,32 @@ function App() {
           <Route
             path="/records/:patientId"
             element={
-              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'staff']}>
+              <RoleRoute allowedRoles={['clinic_admin', 'doctor', 'receptionist', 'staff']}>
                 <PatientRecords />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/pharmacy"
+            element={
+              <RoleRoute allowedRoles={['pharmacist']}>
+                <PatientRecords />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/pharmacy/:patientId"
+            element={
+              <RoleRoute allowedRoles={['pharmacist']}>
+                <PatientRecords />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/pharmacy/catalog"
+            element={
+              <RoleRoute allowedRoles={['pharmacist']}>
+                <PharmacyCatalogPage />
               </RoleRoute>
             }
           />

@@ -18,6 +18,10 @@ export default function RoleRoute({ children, allowedRoles = [] }) {
       return '/billing';
     }
 
+    if (role === 'pharmacist') {
+      return '/pharmacy';
+    }
+
     return '/records';
   };
 

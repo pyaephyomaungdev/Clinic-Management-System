@@ -405,7 +405,7 @@ export default function Billing() {
       method: 'cash',
     });
     setPaymentError('');
-  }, [selectedInvoice?._id, selectedInvoice?.balanceDue]);
+  }, [selectedInvoice]);
 
   const handleCapturePayment = async (event) => {
     event.preventDefault();

@@ -27,6 +27,10 @@ export default function Login() {
       return '/billing';
     }
 
+    if (role === 'pharmacist') {
+      return '/pharmacy';
+    }
+
     return '/records';
   };
 

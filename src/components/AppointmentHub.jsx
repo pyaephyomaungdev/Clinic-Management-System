@@ -180,6 +180,19 @@ function createChatMessage(role, title, message) {
   };
 }
 
+function hasBookedSelectedSlot(appointments, pendingBooking) {
+  if (!pendingBooking?.doctorId || !pendingBooking?.scheduledAt) {
+    return false;
+  }
+
+  const targetTime = new Date(pendingBooking.scheduledAt).getTime();
+  return appointments.some((appointment) =>
+    ['scheduled', 'confirmed', 'checked_in'].includes(appointment.status) &&
+    appointment.doctorId === pendingBooking.doctorId &&
+    new Date(appointment.scheduledAt).getTime() === targetTime,
+  );
+}
+
 function createWelcomeMessage() {
   return createChatMessage(
     'assistant',
@@ -417,11 +430,6 @@ export default function AppointmentHub() {
 
   const upcomingAppointments = useMemo(() => appointments.slice(0, 6), [appointments]);
   const appointmentGroups = useMemo(() => groupAppointmentsByDay(upcomingAppointments), [upcomingAppointments]);
-  const latestAssistantReply = useMemo(
-    () => [...assistantMessages].reverse().find((message) => message.role === 'assistant') ?? null,
-    [assistantMessages],
-  );
-
   useEffect(() => {
     if (!telegramConnection?.connectUrl || telegramConnection.connected) {
       return undefined;
@@ -658,6 +666,13 @@ export default function AppointmentHub() {
 
   const confirmBooking = async () => {
     if (!pendingBooking) {
+      return;
+    }
+
+    if (hasBookedSelectedSlot(appointments, pendingBooking)) {
+      setBookingError('You already booked this appointment slot.');
+      setIsConfirmOpen(false);
+      setPendingBooking(null);
       return;
     }
 

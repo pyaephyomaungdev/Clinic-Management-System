@@ -3,11 +3,13 @@ import { ApiError, apiRequest } from './api.js';
 export const CLINIC_SLUG = import.meta.env.VITE_CLINIC_SLUG?.trim() || 'demo-clinic';
 
 const LOCAL_STATE_KEY = 'dcms-clinic-demo-state-v1';
+const PREFERRED_CLINIC_KEY = 'dcms-public-clinic-slug';
 const DEMO_FALLBACKS_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_FALLBACKS !== 'false';
 const SLOT_DURATION_MINUTES = 30;
 const MIN_BOOKING_LEAD_MINUTES = 30;
 const MAX_BOOKING_ADVANCE_DAYS = 30;
 const DEFAULT_TIMEZONE = 'Asia/Bangkok';
+const ACTIVE_BOOKING_STATUSES = new Set(['scheduled', 'confirmed', 'checked_in']);
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -149,6 +151,29 @@ function updateLocalState(updater) {
   return writeLocalState(updater(readLocalState()));
 }
 
+export function getPreferredClinicSlug() {
+  if (typeof window === 'undefined') {
+    return CLINIC_SLUG;
+  }
+
+  const storedSlug = window.localStorage.getItem(PREFERRED_CLINIC_KEY)?.trim();
+  return storedSlug || CLINIC_SLUG;
+}
+
+export function setPreferredClinicSlug(clinicSlug) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const normalizedSlug = String(clinicSlug ?? '').trim();
+  if (!normalizedSlug) {
+    window.localStorage.removeItem(PREFERRED_CLINIC_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(PREFERRED_CLINIC_KEY, normalizedSlug);
+}
+
 function isMissingFeatureError(error) {
   return DEMO_FALLBACKS_ENABLED && error instanceof ApiError && [404, 405, 501].includes(error.statusCode);
 }
@@ -272,6 +297,26 @@ function normalizeBooking(booking) {
     status: booking.status ?? 'scheduled',
     source: booking.source ?? 'local',
   };
+}
+
+function isActiveBookingStatus(status) {
+  return ACTIVE_BOOKING_STATUSES.has(String(status ?? '').trim());
+}
+
+function isDuplicateBooking(appointments, appointment) {
+  const targetTime = new Date(appointment.scheduledAt).getTime();
+  if (!Number.isFinite(targetTime)) {
+    return false;
+  }
+
+  return appointments.some((existing) => {
+    const existingTime = new Date(existing.scheduledAt).getTime();
+    return (
+      isActiveBookingStatus(existing.status) &&
+      existing.doctorId === appointment.doctorId &&
+      existingTime === targetTime
+    );
+  });
 }
 
 function normalizeTelegramConnection(payload) {
@@ -493,9 +538,10 @@ function getFallbackTriage(message, departments) {
 }
 
 export async function loadDepartments(request, { publicView = true } = {}) {
+  const clinicSlug = getPreferredClinicSlug();
   const routes = publicView
-    ? [`/public/clinics/${CLINIC_SLUG}/departments`]
-    : ['/departments', `/public/clinics/${CLINIC_SLUG}/departments`];
+    ? [`/public/clinics/${clinicSlug}/departments`]
+    : ['/departments', `/public/clinics/${clinicSlug}/departments`];
 
   for (const route of routes) {
     try {
@@ -515,6 +561,7 @@ export async function loadDepartments(request, { publicView = true } = {}) {
 }
 
 export async function loadDoctors(request, { publicView = false, departmentId } = {}) {
+  const clinicSlug = getPreferredClinicSlug();
   const getLocalDoctors = () => {
     const state = readLocalState();
     const departments = state.departments.map(normalizeDepartment);
@@ -526,7 +573,7 @@ export async function loadDoctors(request, { publicView = false, departmentId } 
   if (publicView) {
     try {
       const payload = await request(
-        `/public/clinics/${CLINIC_SLUG}/doctors${departmentId ? `?departmentId=${encodeURIComponent(departmentId)}` : ''}`,
+        `/public/clinics/${clinicSlug}/doctors${departmentId ? `?departmentId=${encodeURIComponent(departmentId)}` : ''}`,
         { auth: false },
       );
       const doctors = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : null;
@@ -622,15 +669,16 @@ export async function loadAvailability(request, { departmentId, days = MAX_BOOKI
 
   const from = new Date().toISOString();
   const to = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  const clinicSlug = getPreferredClinicSlug();
 
   const routes = departmentId
     ? [
-        `/public/clinics/${CLINIC_SLUG}/availability?${new URLSearchParams({
+        `/public/clinics/${clinicSlug}/availability?${new URLSearchParams({
           departmentId,
           from,
           to,
         }).toString()}`,
-        `/public/clinics/${CLINIC_SLUG}/departments/${departmentId}/availability?${new URLSearchParams({
+        `/public/clinics/${clinicSlug}/departments/${departmentId}/availability?${new URLSearchParams({
           from,
           to,
         }).toString()}`,
@@ -664,9 +712,10 @@ export async function loadAvailability(request, { departmentId, days = MAX_BOOKI
 }
 
 export async function submitTriage(request, { message, departmentId } = {}) {
+  const clinicSlug = getPreferredClinicSlug();
   try {
     const departments = await loadDepartments(request, { publicView: true });
-    const payload = await request(`/public/clinics/${CLINIC_SLUG}/chatbot/triage`, {
+    const payload = await request(`/public/clinics/${clinicSlug}/chatbot/triage`, {
       method: 'POST',
       body: {
         message,
@@ -941,6 +990,7 @@ export async function saveWeeklyAvailability(request, availability) {
 
 export async function bookAppointment(request, appointment) {
   const scheduledAt = new Date(appointment.scheduledAt).getTime();
+  const clinicSlug = appointment.clinicSlug ?? getPreferredClinicSlug();
 
   if (scheduledAt < Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000) {
     throw new ApiError('Appointments must be booked at least 30 minutes in advance.', 400);
@@ -950,7 +1000,7 @@ export async function bookAppointment(request, appointment) {
   }
 
   try {
-    const payload = await request(`/public/clinics/${CLINIC_SLUG}/appointments`, {
+    const payload = await request(`/public/clinics/${clinicSlug}/appointments`, {
       method: 'POST',
       body: {
         doctorId: appointment.doctorId,
@@ -971,6 +1021,9 @@ export async function bookAppointment(request, appointment) {
   }
 
   const state = readLocalState();
+  if (isDuplicateBooking(state.bookings, appointment)) {
+    throw new ApiError('You already booked this appointment slot.', 400);
+  }
   const doctor = state.doctors.find((item) => item._id === appointment.doctorId);
   const department = state.departments.find((item) => item._id === (appointment.departmentId ?? doctor?.departmentId));
   const booking = normalizeBooking({

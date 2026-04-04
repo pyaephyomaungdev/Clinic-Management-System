@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 function getFloatingPortalRoot() {
@@ -61,12 +61,8 @@ export default function FloatingAssistantWidget({
   onUseDepartment,
   onAutoFillSlot,
 }) {
-  const [portalRoot, setPortalRoot] = useState(null);
+  const portalRoot = getFloatingPortalRoot();
   const threadRef = useRef(null);
-
-  useEffect(() => {
-    setPortalRoot(getFloatingPortalRoot());
-  }, []);
 
   useEffect(() => {
     if (!isOpen || typeof window === 'undefined') {

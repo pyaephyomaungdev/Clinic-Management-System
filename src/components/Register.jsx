@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiRequest, isApiError } from '../lib/api.js';
-import { CLINIC_SLUG, loadPublicClinics } from '../lib/clinicApi.js';
+import { CLINIC_SLUG, loadPublicClinics, setPreferredClinicSlug } from '../lib/clinicApi.js';
 
 const initialForm = {
   firstName: '',
@@ -35,6 +35,7 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clinics, setClinics] = useState([]);
   const [selectedSlug, setSelectedSlug] = useState(CLINIC_SLUG);
+  const selectedClinic = clinics.find((clinic) => clinic.slug === selectedSlug) ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -42,20 +43,36 @@ export default function Register() {
       .then((list) => {
         if (!cancelled && list.length > 0) {
           setClinics(list);
-          if (!list.some((c) => c.slug === selectedSlug)) {
-            setSelectedSlug(list[0].slug);
-          }
+          setSelectedSlug((currentSlug) => {
+            const nextSlug = list.some((clinic) => clinic.slug === currentSlug) ? currentSlug : list[0].slug;
+            setPreferredClinicSlug(nextSlug);
+            return nextSlug;
+          });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) {
+          setPreferredClinicSlug(CLINIC_SLUG);
+        }
+      });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    setPreferredClinicSlug(selectedSlug);
+  }, [selectedSlug]);
+
+  const handleClinicChange = (nextSlug) => {
+    setSelectedSlug(nextSlug);
+    setPreferredClinicSlug(nextSlug);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
     setIsSubmitting(true);
+    setPreferredClinicSlug(selectedSlug);
 
     try {
       await apiRequest(`/public/clinics/${encodeURIComponent(selectedSlug)}/patients/register`, {
@@ -124,23 +141,35 @@ export default function Register() {
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {clinics.length > 1 && (
-              <label className="block space-y-2">
+            <div className="rounded-3xl border border-indigo-100 bg-indigo-50/80 p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-indigo-500">Clinic Branch</p>
+                  <h2 className="mt-2 text-xl font-bold text-slate-900">
+                    {selectedClinic?.name ?? 'Choose where you want to register'}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {selectedClinic?.address || 'Your selected clinic will be used for appointment booking and reminders after signup.'}
+                  </p>
+                </div>
+              </div>
+
+              <label className="mt-4 block space-y-2">
                 <span className="text-sm font-bold text-slate-700">Clinic Branch</span>
                 <select
                   required
                   value={selectedSlug}
-                  onChange={(event) => setSelectedSlug(event.target.value)}
-                  className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all"
+                  onChange={(event) => handleClinicChange(event.target.value)}
+                  className="w-full px-4 py-4 rounded-2xl bg-white border border-indigo-100 focus:ring-2 focus:ring-indigo-600 focus:bg-white outline-none transition-all"
                 >
-                  {clinics.map((clinic) => (
+                  {(clinics.length > 0 ? clinics : [{ slug: CLINIC_SLUG, name: 'Current Clinic', address: '' }]).map((clinic) => (
                     <option key={clinic.slug} value={clinic.slug}>
                       {clinic.name}{clinic.address ? ` — ${clinic.address}` : ''}
                     </option>
                   ))}
                 </select>
               </label>
-            )}
+            </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               <label className="block space-y-2">

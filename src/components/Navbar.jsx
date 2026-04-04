@@ -1,7 +1,8 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Navbar() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuth();
   const isPatient = user?.role === 'patient';
@@ -9,13 +10,57 @@ export default function Navbar() {
   const isAdmin = user?.role === 'clinic_admin' || isPlatformAdmin;
   const canAccessRecords = ['clinic_admin', 'doctor', 'pharmacist', 'receptionist', 'staff'].includes(user?.role ?? '');
   const canAccessBilling = ['clinic_admin', 'doctor', 'receptionist', 'cashier', 'staff'].includes(user?.role ?? '');
+  const pathname = location.pathname;
+
   const navItems = [
-    { to: '/', label: 'Home', show: true },
-    { to: '/appointments', label: 'Appointments', show: isAuthenticated && isPatient },
-    { to: '/records', label: user?.role === 'pharmacist' ? 'Pharmacy' : 'Records', show: isAuthenticated && canAccessRecords },
-    { to: '/billing', label: user?.role === 'cashier' ? 'Cashier' : 'Billing', show: isAuthenticated && canAccessBilling },
-    { to: '/admin', label: isPlatformAdmin ? 'Platform' : 'Admin', show: isAuthenticated && isAdmin },
-    { to: '/contact', label: 'Contact', show: true },
+    {
+      to: '/',
+      label: 'Home',
+      show: true,
+      isActive: pathname === '/',
+    },
+    {
+      to: '/appointments',
+      label: 'Appointments',
+      show: isAuthenticated && isPatient,
+      isActive: pathname === '/appointments',
+    },
+    {
+      to: '/pharmacy',
+      label: 'Pharmacy',
+      show: isAuthenticated && user?.role === 'pharmacist',
+      isActive: pathname === '/pharmacy' || (/^\/pharmacy\/[^/]+$/.test(pathname) && pathname !== '/pharmacy/catalog'),
+    },
+    {
+      to: '/pharmacy/catalog',
+      label: 'Catalog',
+      show: isAuthenticated && user?.role === 'pharmacist',
+      isActive: pathname === '/pharmacy/catalog',
+    },
+    {
+      to: '/records',
+      label: 'Records',
+      show: isAuthenticated && canAccessRecords && user?.role !== 'pharmacist',
+      isActive: pathname === '/records' || pathname.startsWith('/records/'),
+    },
+    {
+      to: '/billing',
+      label: user?.role === 'cashier' ? 'Cashier' : 'Billing',
+      show: isAuthenticated && canAccessBilling,
+      isActive: pathname === '/billing',
+    },
+    {
+      to: '/admin',
+      label: isPlatformAdmin ? 'Platform' : 'Admin',
+      show: isAuthenticated && isAdmin,
+      isActive: pathname === '/admin',
+    },
+    {
+      to: '/contact',
+      label: 'Contact',
+      show: true,
+      isActive: pathname === '/contact',
+    },
   ].filter((item) => item.show);
 
   const handlePrimaryAction = async () => {
@@ -38,21 +83,18 @@ export default function Navbar() {
 
         <div className="hidden md:flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-2 text-sm font-medium text-slate-600 shadow-sm">
           {navItems.map((item) => (
-            <NavLink
+            <Link
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                [
-                  'rounded-full px-4 py-2 transition-all',
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600',
-                ].join(' ')
-              }
+              className={[
+                'rounded-full px-4 py-2 transition-all',
+                item.isActive
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600',
+              ].join(' ')}
             >
               {item.label}
-            </NavLink>
+            </Link>
           ))}
         </div>
 

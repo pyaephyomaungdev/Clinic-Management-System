@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 function getPortalRoot() {
@@ -18,11 +18,7 @@ function getPortalRoot() {
 }
 
 export default function ModalPortal({ isOpen, onClose, children }) {
-  const [portalRoot, setPortalRoot] = useState(null);
-
-  useEffect(() => {
-    setPortalRoot(getPortalRoot());
-  }, []);
+  const portalRoot = getPortalRoot();
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') {
